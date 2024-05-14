@@ -1,11 +1,12 @@
+// const express = require("express");
+import express from "express";
+import configs from "./src/config/config";
 
-const express = require("express")
+const app = express();
 
-const app = express()
+require("./src/db/connection");
+const port = configs.port || 4040;
 
-require("dotenv").config()
-const port= process.env.PORT|| 4040 
-
-app.listen(port,()=>{
-    console.log(`Server is running at Port no. ${port}`)
-})
+app.listen(port, () => {
+  console.log(`Server is running at Port no. ${port}`);
+});
