@@ -90,21 +90,27 @@ const login = async (
         
 
     // }
-
+if (!password || !hashedPassword) {
+    // throw {  };
+    const error = createHttpError(400, 'Password or hash is undefined')
+    return next(error)
     
-    // const result = await bcrypt.compare(password, hashedPassword)
-    // if (result) {
-    //         console.log('Password is valid!');
+    }
+    
+    const result = await bcrypt.compare(password, hashedPassword)
+    console.log("result: ",result)
+    if (result) {
+            console.log('Password is valid!');
            
-    //         res.status(200).send({
-    //         message: `User Login successfully`,
-    //         })
-    //     }
-    //     else {
-    //         console.log('Password is invalid!');
-    //         const error = createHttpError(400, `Please enter valid credenials`)
-    //         next(error)
-    //     }
+            res.status(200).send({
+            message: `User Login successfully`,
+            })
+        }
+        else {
+            console.log('Password is invalid!');
+            const error = createHttpError(400, `Please enter valid credenials`)
+            next(error)
+        }
 }
 
 export { register, login }
