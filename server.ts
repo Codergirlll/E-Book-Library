@@ -3,6 +3,7 @@ import express from "express";
 import configs from "./src/config/config";
 import globalErrorHandler from "./src/middleware/globalErrorHandler";
 import User_Router from "./src/Router/user.router";
+import Book_Router from "./src/Router/book.router";
 
 const app = express();
 
@@ -17,6 +18,7 @@ require("./src/db/connection");
 
 // For All Router
 app.use('/api/user', User_Router)
+app.use('/api/book', Book_Router)
 
 
 // For Global Handler
