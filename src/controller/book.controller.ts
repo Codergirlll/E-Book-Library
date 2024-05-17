@@ -1,9 +1,11 @@
 
 import { Request, Response, NextFunction } from "express"
+import createHttpError from "http-errors"
+import cloudinary from "../config/cloudinary"
+import path from "node:path";
+import Book_model from "../model/book.model";
 
-// const Book_Logs = require("../models/blog.model")
 
-// import Book_Logs
 const book_Create = async (
     req: Request,
     res: Response,
@@ -11,182 +13,65 @@ const book_Create = async (
 ) => {
 
 
-    // try {
-    console.log("bookCreate")
-    //     // console.log("request: ", req.body)
+    try {
 
-    //     let { title, description, author, state, body } = req.body
+        let { title, description, genre } = req.body as { [fieldname: string]: Express.Multer.File[] }
+        let { coverImage, file } = req.files as { [fieldname: string]: Express.Multer.File[] }
 
 
-    //     let data = await Book_Logs.create({
-    //         title, description, author, state, body
-    //     })
-    //     console.log("data: ", data)
-    //     res.status(200).send({
-    //         status: 0,
-    //         message: "success",
-    //         description: `Blog Created Successfully`,
-    //         data: {
-    //             _id: data._id,
-    //             blog: data
-    //         }
-    //     })
-    // }
-    // catch (error) {
+        // *********************** for uploading the cover page **********************
+        let Cover_Image_File_Name = coverImage[0].filename
+        let Cover_Image_Path = path.resolve(__dirname, "../../public/data/uploads", Cover_Image_File_Name)
+        let Cover_Image_MimeType = coverImage[0].mimetype.split('/').at(-1)
 
-    //     res.status(400).send({
-    //         status: 1,
-    //         message: "failed",
-    //         description: error.message
-    //     })
-    // }
+        const coverUploadResult = await cloudinary.uploader.upload(Cover_Image_Path, {
+            filename_override: Cover_Image_File_Name,
+            folder: "Book-Covers",
+            format: Cover_Image_MimeType,
+        });
+
+
+        // *********************** for uploading the File **********************
+        let File_File_Name = file[0].filename
+        let File_Path = path.resolve(__dirname, "../../public/data/uploads", File_File_Name)
+        let File_MimeType = file[0].mimetype.split('/').at(-1)
+
+        const fileResult = await cloudinary.uploader.upload(File_Path, {
+            filename_override: File_File_Name,
+            folder: "Book-Covers",
+            format: File_MimeType,
+        });
+
+
+        // ************************ Saving in DataBase *****************************
+        let New_Book = await Book_model.create({
+            title,
+            description,
+            genre,
+            author: "6645be31e5708c11c2957c73",
+            coverImage: coverUploadResult.secure_url,
+            file: fileResult.secure_url
+        })
+        console.log(`Data store successfully`)
+
+        res.status(201).json({
+            message: `Data store successfully`,
+            id: New_Book._id
+        });
+    }
+    catch (error) {
+        console.log("Error: ", error)
+        const err = createHttpError(400, 'Error in uploading files')
+        return next(err)
+
+    }
 }
 
 
-// const book_Update = async (
-//     req: Request,
-//     res: Response,
-//     next: NextFunction
-// ) => {
-
-//     try {
-//         console.log("blogUpdate")
-//         console.log("request: ", req.body)
-//         console.log("id: ", req.params.id)
-
-
-//         let { title, description, author, state, body } = req.body
-
-//         let data = await BlogLogs.findOneAndUpdate(
-//             { _id: req.params.id },
-//             {
-//                 title, description, author, state, body
-//             },
-//             { new: true }
-//         )
-
-//         res.status(200).send({
-//             status: 0,
-//             message: "success",
-//             description: `Blog Updated Successfully`,
-//             data: {
-//                 _id: data._id,
-//                 blog: data
-//             }
-//         })
-//     }
-//     catch (error) {
-
-//         res.status(400).send({
-//             status: 1,
-//             message: "failed",
-//             description: error.message
-//         })
-//     }
-// }
-
-
-// const book_Delete = async (
-//     req: Request,
-//     res: Response,
-//     next: NextFunction
-// ) => {
-//     console.log("blogById")
-
-//     try {
-
-//         let data = await BlogLogs.findOneAndDelete(
-//             { _id: req.params.id }
-//         )
-//         res.status(200).send({
-//             status: 0,
-//             message: "success",
-//             description: `Blog Delete successfully`,
-//             data: {
-//                 _id: data._id,
-//                 blog: data
-//             }
-
-//         })
-//     }
-//     catch (error) {
-//         res.status(400).send({
-//             status: 1,
-//             message: "failed",
-//             description: error.message
-//         })
-//     }
-// }
-
-
-// const allBook = async (
-//     req: Request,
-//     res: Response,
-//     next: NextFunction
-// ) => {
-//     console.log("allBlog")
-//     try {
-
-//         let data = await BlogLogs.find()
-//         res.status(200).send({
-//             status: 0,
-//             message: "success",
-//             description: `All Bolgs`,
-//             data: {
-//                 tatalBlogs: data.length,
-//                 blogs: data
-//             }
-
-//         })
-//     }
-//     catch (error) {
-
-//         res.status(400).send({
-//             status: 1,
-//             message: "failed",
-//             description: error.message
-//         })
-//     }
-// }
-
-
-// const book_ById = async (
-//     req: Request,
-//     res: Response,
-//     next: NextFunction
-// ) => {
-//     console.log("blogById")
-
-//     try {
-
-//         let data = await BlogLogs.findOne({ _id: req.params.id })
-
-//         res.status(200).send({
-//             status: 0,
-//             message: "success",
-//             description: `Getting Blog By Id`,
-//             data: {
-//                 _id: data._id,
-//                 blog: data
-//             }
-//         })
-//     }
-//     catch (error) {
-
-//         res.status(400).send({
-//             status: 1,
-//             message: "failed",
-//             description: error.message
-//         })
-//     }
-// }
 
 
 export {
     book_Create,
-    // book_Update,
-    // book_Delete,
-    // allBlog,
-    // book_ById,
+
 }
 
