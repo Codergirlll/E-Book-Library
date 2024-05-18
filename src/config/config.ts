@@ -11,4 +11,4 @@ const configs = {
   api_secret: process.env.API_SECRET_KEY
 };
 
-export = configs;
+export default configs;

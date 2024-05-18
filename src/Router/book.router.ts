@@ -5,29 +5,23 @@ import express from "express"
 import multer from "multer"
 import path = require('node:path')
 
-
 const Book_Router = express.Router()
 
-// const {
-//     // blogCreate,
-//     // blogUpdate,
-//     // blogDelete,
-//     // allBlog,
-//     // blogById
-// } = require("..ntrollers/blog.controller")
-
-import { book_Create } from "../controller/book.controller"
+import authentication from "../middleware/authentication"
+import { book_Create, book_Update, All_Book, Single_Book } from "../controller/book.controller"
 
 
-
-// *************** for creation of book **************** */ 
+// ****************** for create multer ****************************
 const upload = multer({
     dest: path.resolve(__dirname, "../../public/data/uploads"),
     limits: { fileSize: 3e7 }
 })
 
+
+// ******************* For creating Book Lib ***********************
 Book_Router.post(
     "/create",
+    authentication,
     upload.fields([
         { name: "coverImage", maxCount: 1 },
         { name: "file", maxCount: 1 }
@@ -35,10 +29,26 @@ Book_Router.post(
     book_Create
 )
 
-// Book_Router.put("/blog/update/:id", blogUpdate)
-// Book_Router.delete("/blog/delete/:id", blogDelete)
-// Book_Router.get("/blog/allblog", allBlog)
-// Book_Router.get("/blog/blog.by.id/:id", auth, blogById)
+
+// ******************* For updating Book Lib ***********************
+Book_Router.patch(
+    "/update/:BookID",
+    authentication,
+    upload.fields([
+        { name: "coverImage", maxCount: 1 },
+        { name: "file", maxCount: 1 }
+    ]),
+    book_Update
+)
+
+
+// ******************* For all Books from Lib ***********************
+Book_Router.get("/all", All_Book)
+
+// ******************* For getting specific book from Lib ***********************
+Book_Router.get("/:BookID", Single_Book)
+
+// Book_Router.delete("/delete/:BookID", blogDelete)
 
 
 export = Book_Router
