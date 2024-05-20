@@ -8,7 +8,7 @@ import path = require('node:path')
 const Book_Router = express.Router()
 
 import authentication from "../middleware/authentication"
-import { book_Create, book_Update, All_Book, Single_Book } from "../controller/book.controller"
+import { book_Create, book_Update, All_Book, Single_Book, book_delete } from "../controller/book.controller"
 
 
 // ****************** for create multer ****************************
@@ -30,7 +30,7 @@ Book_Router.post(
 )
 
 
-// ******************* For updating Book Lib ***********************
+// ******************* For updating Book Lib ************************
 Book_Router.patch(
     "/update/:BookID",
     authentication,
@@ -45,10 +45,13 @@ Book_Router.patch(
 // ******************* For all Books from Lib ***********************
 Book_Router.get("/all", All_Book)
 
-// ******************* For getting specific book from Lib ***********************
+
+// ******************* For getting specific book from Lib ***********
 Book_Router.get("/:BookID", Single_Book)
 
-// Book_Router.delete("/delete/:BookID", blogDelete)
+
+// ******************* For deleting book from Lib *******************
+Book_Router.delete("/delete/:BookID", authentication, book_delete)
 
 
 export = Book_Router

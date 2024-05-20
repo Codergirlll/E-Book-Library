@@ -1,12 +1,10 @@
 
 import { Request, Response, NextFunction } from "express"
 import createHttpError from "http-errors"
-import path from "node:path";
-import fs from "fs"
 
-import cloudinary from "../config/cloudinary"
 import Book_model from "../model/book.model";
 import { AuthRequest } from "../middleware/authentication";
+import { cloudinary_inserting, cloudinary_delete } from "../middleware/cloundinarFunction";
 
 
 
@@ -23,34 +21,18 @@ const book_Create = async (
         let { coverImage, file } = req.files as { [fieldname: string]: Express.Multer.File[] }
 
 
-        // *********************** for uploading the cover page **********************
-        let Cover_Image_File_Name = coverImage[0].filename
-        let Cover_Image_Path = path.resolve(__dirname, "../../public/data/uploads", Cover_Image_File_Name)
-        let Cover_Image_MimeType = coverImage[0].mimetype.split('/').at(-1)
-
-        const coverUploadResult = await cloudinary.uploader.upload(
-            Cover_Image_Path,
-            {
-                filename_override: Cover_Image_File_Name,
-                folder: "Book-Covers",
-                format: Cover_Image_MimeType,
-            }
-        );
+        // *********************** for uploading the cover page and deleting old one **********************
+        let cover_url
+        if (coverImage) {
+            cover_url = await cloudinary_inserting(next, coverImage)
+        }
 
 
-        // *********************** for uploading the File **********************
-        let File_File_Name = file[0].filename
-        let File_Path = path.resolve(__dirname, "../../public/data/uploads", File_File_Name)
-        let File_MimeType = file[0].mimetype.split('/').at(-1)
-
-        const fileResult = await cloudinary.uploader.upload(
-            File_Path,
-            {
-                filename_override: File_File_Name,
-                folder: "Book-Files",
-                format: File_MimeType,
-            }
-        );
+        // *********************** for uploading the File and deleting old one **********************
+        let file_URL
+        if (file) {
+            file_URL = await cloudinary_inserting(next, file)
+        }
 
 
         // *********************** For taking author ****************************
@@ -63,22 +45,10 @@ const book_Create = async (
             description,
             genre,
             author: _req.userID,//"6645be31e5708c11c2957c73",
-            coverImage: coverUploadResult.secure_url,
-            file: fileResult.secure_url
+            coverImage: cover_url,
+            file: file_URL
         })
         console.log(`Data store successfully`)
-
-
-        // ************************ For deleting temperory files *******************
-        try {
-            await fs.promises.unlink(Cover_Image_Path)
-            await fs.promises.unlink(File_Path)
-        }
-        catch (error) {
-            return next(createHttpError(500, `Unable to delete the file`))
-        }
-
-
 
         res.status(201).json({
             message: `Data store successfully`,
@@ -114,64 +84,36 @@ const book_Update = async (
             const err = createHttpError(404, `Book Not Found`)
             return next(err)
         }
-
+        let {
+            author,
+            coverImage: old_coverImage,
+            file: old_file
+        } = IsBookExist
 
         // check if author is going to upadte same book or not
         let _req = req as AuthRequest
         let user_id = _req.userID
-        let author_id = IsBookExist.author.toString()
+        let author_id = author.toString()
 
         if (user_id !== author_id) {
-            const err = createHttpError(403, `You are allowed to upadate anothore book`)
+            const err = createHttpError(403, `You are not allowed to upadate another book`)
             return next(err)
         }
 
 
         // **************** For updating cover image *****************************
-        let cover_update_result, Update_Cover_URL
-
+        let Update_Cover_URL
         if (coverImage) {
-            let Update_Cover_Image_File_Name = coverImage[0].filename
-            let Update_Cover_Image_Path = path.resolve(__dirname, "../../public/data/uploads", Update_Cover_Image_File_Name)
-            let Update_Cover_Image_MimeType = coverImage[0].mimetype.split('/').at(-1)
-
-            cover_update_result = await cloudinary.uploader.upload(
-                Update_Cover_Image_Path,
-                {
-                    filename_override: Update_Cover_Image_File_Name,
-                    folder: "Book-Covers",
-                    format: Update_Cover_Image_MimeType
-                }
-            )
-
-            Update_Cover_URL = cover_update_result.secure_url
-
-            fs.promises.unlink(Update_Cover_Image_Path)
+            Update_Cover_URL = await cloudinary_inserting(next, coverImage)
+            await cloudinary_delete(next, old_coverImage)
         }
 
 
         // *********************For updating file *********************************
-        let Update_file, Update_File_URL
-
+        let Update_File_URL
         if (file) {
-
-            let Update_File_Name = file[0].filename
-            let Update_File_Path = path.resolve(__dirname, "../../public/data/uploads", Update_File_Name)
-            let Update_File_MimeType = file[0].mimetype.split('/').at(-1)
-
-
-            Update_file = await cloudinary.uploader.upload(
-                Update_File_Path,
-                {
-                    filename_override: Update_File_Name,
-                    folder: "Book-Files",
-                    format: Update_File_MimeType
-                }
-            )
-
-            Update_File_URL = Update_file.secure_url
-
-            fs.promises.unlink(Update_File_Path)
+            Update_File_URL = await cloudinary_inserting(next, file)
+            await cloudinary_delete(next, old_file)
         }
 
 
@@ -181,9 +123,8 @@ const book_Update = async (
                 title,
                 description,
                 genre,
-                // coverImage: Update_Cover_URL ? Update_Cover_URL : IsBookExist.coverImage,
-                coverImage: Update_Cover_URL || IsBookExist.coverImage,
-                file: Update_File_URL || IsBookExist.file
+                coverImage: Update_Cover_URL || old_coverImage,
+                file: Update_File_URL || old_file
             },
             { new: false }
         )
@@ -191,17 +132,13 @@ const book_Update = async (
         console.log(`Data Updated successfully`)
 
         res.status(201).json({
-            message: `Data Updated successfully`,
-            // id: update_Book._id
+            message: `Book ID no. ${IsBookExist._id} is updated successfully`,
         });
-
-
     }
     catch (error) {
         console.log("Error: ", error)
         const err = createHttpError(500, { error } || 'Error in updating files')
         return next(err)
-
     }
 }
 
@@ -227,7 +164,6 @@ const All_Book = async (
         console.log("Error: ", error)
         const err = createHttpError(500, { error } || 'Error in getting all Books')
         return next(err)
-
     }
 }
 
@@ -243,10 +179,13 @@ const Single_Book = async (
 
 
         let { BookID } = req.params
-        console.log("BookID: ", BookID)
 
         let Book = await Book_model.findOne({ _id: BookID })
-        console.log("Book: ", Book)
+        if (!Book) {
+            let err = createHttpError(404, ` Book ID no. ${BookID} is not found. `)
+            return next(err)
+        }
+
         res.status(200).json({
             message: `Specific Book Data`,
             book: Book
@@ -256,14 +195,66 @@ const Single_Book = async (
         console.log("Error: ", error)
         const err = createHttpError(500, { error } || 'Error in getting single Book')
         return next(err)
-
     }
 }
+
+
+// ******************* For deleting book from Lib *******************
+const book_delete = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+
+    try {
+
+        let { BookID } = req.params
+
+        let IsBookExist = await Book_model.findOne({ _id: BookID })
+        if (!IsBookExist) {
+            const err = createHttpError(404, `Book Not Found`)
+            return next(err)
+        }
+
+        // check if author is going to delete same book or not
+        let _req = req as AuthRequest
+        let user_id = _req.userID
+        let author_id = IsBookExist.author.toString()
+
+        if (user_id !== author_id) {
+            const err = createHttpError(403, `You are allowed to delete anothore book`)
+            return next(err)
+        }
+
+
+        // For Deleting file from cloudinary
+        let { coverImage, file } = IsBookExist
+        await cloudinary_delete(next, coverImage)
+        await cloudinary_delete(next, file)
+
+
+        // For Deleting the book from DataBase
+        await Book_model.findOneAndDelete({ _id: BookID })
+
+        res.status(201).json({
+            message: `Book ID no. ${BookID} delete successfully`,
+        });
+
+
+    }
+    catch (error) {
+        console.log("Error: ", error)
+        const err = createHttpError(500, { error } || 'Error in Deleting Book')
+        return next(err)
+    }
+}
+
 
 export {
     book_Create,
     book_Update,
     All_Book,
-    Single_Book
+    Single_Book,
+    book_delete
 }
 
